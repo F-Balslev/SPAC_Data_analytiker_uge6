@@ -51,6 +51,8 @@ def load_orders(filepath: str) -> pd.DataFrame:
     return pd.read_csv(filepath, parse_dates=["date"])
 
 
+"""
+DEPRICATED
 def load_all(filepaths: FilePaths):
     inventory = load_inventory_to_dict(filepaths.inventory_path())
     orders = load_orders(filepaths.orders_path())
@@ -58,3 +60,4 @@ def load_all(filepaths: FilePaths):
     products = load_dataframe(filepaths.products_path())
 
     return inventory, orders, restocks, products
+"""

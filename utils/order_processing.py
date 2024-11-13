@@ -1,54 +1,80 @@
 import pandas as pd
+import tqdm
+
+from utils.dataloader import (
+    FilePaths,
+    load_dataframe,
+    load_inventory_to_dict,
+    load_orders,
+    load_restocks,
+)
 
 
-def process_single_restock(shipment, inventory: dict) -> dict:
-    product, amount = shipment["product_id"], shipment["amount"]
+class OrderProcessing:
+    def __init__(self, filepaths: FilePaths):
+        self.filepaths: FilePaths = filepaths
+        self.inventory: dict
+        self.orders: pd.DataFrame
+        self.restocks: pd.DataFrame
+        self.products: pd.DataFrame
 
-    if product not in inventory:
-        raise KeyError(f"Couldn't find {product} in inventory.")
+        self.load_csv()
 
-    inventory[product] += amount
-    inventory["total"] += amount
+        self.start_date: pd.Timestamp = self.orders["date"].iloc[0]
+        self.end_date: pd.Timestamp = self.orders["date"].iloc[-1]
 
-    return inventory
+    def load_csv(self):
+        self.inventory = load_inventory_to_dict(self.filepaths.inventory_path())
+        self.orders = load_orders(self.filepaths.orders_path())
+        self.restocks = load_restocks(self.filepaths.restocks_path())
+        self.products = load_dataframe(self.filepaths.products_path())
 
+    def process_single_restock(self, shipment: pd.DataFrame):
+        product, amount = shipment["product_id"], shipment["amount"]
 
-def process_restocks(
-    restocks: pd.DataFrame, inventory: dict, date: pd.Timestamp
-) -> dict:
-    daily_restocks = restocks[restocks["delivery_date"] == date]
-
-    for _, shipment in daily_restocks.iterrows():
-        inventory = process_single_restock(shipment, inventory)
-
-    return inventory
-
-
-def process_single_order(order, inventory: dict) -> dict:
-    products, status = order["products"], order["status"]
-
-    if status != "Accepted":
-        return inventory
-
-    # Consider checking if valid product structure
-
-    for product in products.split(", ")[:-1]:
-        if product not in inventory:
+        if product not in self.inventory:
             raise KeyError(f"Couldn't find {product} in inventory.")
 
-        if inventory[product] < 1:
-            raise ValueError(f"Product {product} was not in stock.")
+        self.inventory[product] += amount
+        self.inventory["total"] += amount
 
-        inventory[product] -= 1
-        inventory["total"] -= 1
+    def process_daily_restocks(self, date: pd.Timestamp):
+        daily_restocks = self.restocks[self.restocks["delivery_date"] == date]
 
-    return inventory
+        for _, shipment in daily_restocks.iterrows():
+            self.process_single_restock(shipment)
 
+    def process_single_order(self, order: pd.DataFrame):
+        products, status = order["products"], order["status"]
 
-def process_orders(orders: pd.DataFrame, inventory: dict, date: pd.Timestamp) -> dict:
-    daily_orders = orders[orders["date"] == date]
+        if status != "Accepted":
+            return
 
-    for _, order in daily_orders.iterrows():
-        inventory = process_single_order(order, inventory)
+        # Consider checking if valid product structure
 
-    return inventory
+        for product in products.split(", ")[:-1]:
+            if product not in self.inventory:
+                raise KeyError(f"Couldn't find {product} in inventory.")
+
+            if self.inventory[product] < 1:
+                raise ValueError(f"Product {product} was not in stock.")
+
+            self.inventory[product] -= 1
+            self.inventory["total"] -= 1
+
+    def process_daily_orders(self, date: pd.Timestamp):
+        daily_orders = self.orders[self.orders["date"] == date]
+
+        for _, order in daily_orders.iterrows():
+            self.process_single_order(order)
+
+    def process_day(self, date: pd.Timestamp):
+        self.process_daily_restocks(date)
+        self.process_daily_orders(date)
+
+    def process_all(self):
+        for date in tqdm.tqdm(pd.date_range(self.start_date, self.end_date)):
+            self.process_day(date)
+
+    def get_inventory(self) -> dict:
+        return self.inventory
