@@ -18,7 +18,7 @@ def main():
     start_date = orders["date"].iloc[0]
     end_date = orders["date"].iloc[-1]
 
-    for current_date in pd.date_range(start_date, end_date, inclusive=True):
+    for current_date in pd.date_range(start_date, end_date, inclusive="both"):
         # Start by processing restocks for the day
         inventory = process_restocks(restocks, inventory, current_date)
 

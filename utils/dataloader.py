@@ -34,6 +34,8 @@ def load_inventory_to_dict(filepath: str) -> dict:
         for row in reader:
             inventory[row["product_id"]] = int(row["quantity"])
 
+    inventory["total"] = sum(inventory.values())
+
     return inventory
 
 
@@ -50,9 +52,9 @@ def load_orders(filepath: str) -> pd.DataFrame:
 
 
 def load_all(filepaths: FilePaths):
-    inventory = load_inventory_to_dict(filepaths.inventory_path)
-    orders = load_orders(filepaths.orders_path)
-    restocks = load_restocks(filepaths.restocks_path)
-    products = load_dataframe(filepaths.products_path)
+    inventory = load_inventory_to_dict(filepaths.inventory_path())
+    orders = load_orders(filepaths.orders_path())
+    restocks = load_restocks(filepaths.restocks_path())
+    products = load_dataframe(filepaths.products_path())
 
     return inventory, orders, restocks, products
