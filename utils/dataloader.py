@@ -25,39 +25,30 @@ class FilePaths:
         return f"{self.base_path}{self.products}"
 
 
-def load_inventory_to_dict(filepath: str) -> dict:
-    inventory = {}
+class DataLoader:
+    def __init__(self, paths: FilePaths) -> None:
+        self.paths = paths
 
-    with open(filepath) as file:
-        reader = csv.DictReader(file)
+    def load_inventory_to_dict(self) -> dict:
+        inventory = {}
 
-        for row in reader:
-            inventory[row["product_id"]] = int(row["quantity"])
+        with open(self.paths.inventory_path()) as file:
+            reader = csv.DictReader(file)
 
-    inventory["total"] = sum(inventory.values())
+            for row in reader:
+                inventory[row["product_id"]] = int(row["quantity"])
 
-    return inventory
+        inventory["total"] = sum(inventory.values())
 
+        return inventory
 
-def load_dataframe(filepath: str) -> pd.DataFrame:
-    return pd.read_csv(filepath)
+    def load_dataframe(self) -> pd.DataFrame:
+        return pd.read_csv(self.paths.products_path())
 
+    def load_restocks(self) -> pd.DataFrame:
+        return pd.read_csv(
+            self.paths.restocks_path(), parse_dates=["order_date", "delivery_date"]
+        )
 
-def load_restocks(filepath: str) -> pd.DataFrame:
-    return pd.read_csv(filepath, parse_dates=["order_date", "delivery_date"])
-
-
-def load_orders(filepath: str) -> pd.DataFrame:
-    return pd.read_csv(filepath, parse_dates=["date"])
-
-
-"""
-DEPRICATED
-def load_all(filepaths: FilePaths):
-    inventory = load_inventory_to_dict(filepaths.inventory_path())
-    orders = load_orders(filepaths.orders_path())
-    restocks = load_restocks(filepaths.restocks_path())
-    products = load_dataframe(filepaths.products_path())
-
-    return inventory, orders, restocks, products
-"""
+    def load_orders(self) -> pd.DataFrame:
+        return pd.read_csv(self.paths.orders_path(), parse_dates=["date"])

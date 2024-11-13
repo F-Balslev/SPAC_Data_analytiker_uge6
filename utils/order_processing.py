@@ -1,18 +1,13 @@
 import pandas as pd
 import tqdm
 
-from utils.dataloader import (
-    FilePaths,
-    load_dataframe,
-    load_inventory_to_dict,
-    load_orders,
-    load_restocks,
-)
+from utils.dataloader import DataLoader, FilePaths
 
 
 class OrderProcessing:
     def __init__(self, filepaths: FilePaths):
         self.filepaths: FilePaths = filepaths
+        self.dataloader: DataLoader = DataLoader(self.filepaths)
         self.inventory: dict
         self.orders: pd.DataFrame
         self.restocks: pd.DataFrame
@@ -24,10 +19,10 @@ class OrderProcessing:
         self.end_date: pd.Timestamp = self.orders["date"].iloc[-1]
 
     def load_csv(self):
-        self.inventory = load_inventory_to_dict(self.filepaths.inventory_path())
-        self.orders = load_orders(self.filepaths.orders_path())
-        self.restocks = load_restocks(self.filepaths.restocks_path())
-        self.products = load_dataframe(self.filepaths.products_path())
+        self.inventory = self.dataloader.load_inventory_to_dict()
+        self.orders = self.dataloader.load_orders()
+        self.restocks = self.dataloader.load_restocks()
+        self.products = self.dataloader.load_dataframe()
 
     def process_single_restock(self, shipment: pd.DataFrame):
         product, amount = shipment["product_id"], shipment["amount"]

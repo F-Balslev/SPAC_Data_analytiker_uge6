@@ -1,7 +1,5 @@
 from utils.dataloader import FilePaths
-from utils.order_processing import (
-    OrderProcessing,
-)
+from utils.order_processing import OrderProcessing
 
 
 def main():
