@@ -1,0 +1,53 @@
+@startuml
+
+skin rose
+
+class restocks{
+order_date
+delivery_date
+product_id
+amount
+supplier
+}
+
+class start_inventory{
+product_id
+quantity
+}
+
+
+
+
+class products{
+id
+name
+categories
+price
+brand
+description
+im_url
+}
+
+
+
+
+class orders{
+date
+customer_id
+products
+price
+status
+}
+
+
+
+
+
+
+restocks::product_id *-- products::id
+restocks::supplier *-- products::
+products::id *-- start_inventory::product_id
+products::id --* orders::products
+products::brand --* restocks::supplier
+
+@enduml
