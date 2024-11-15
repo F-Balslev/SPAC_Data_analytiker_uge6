@@ -1,5 +1,5 @@
 from utils.dataloader import FilePaths
-from utils.order_processing import OrderProcessing
+from utils.order_processing import InventorySimulation
 
 
 def main():
@@ -10,7 +10,7 @@ def main():
         restocks="restocks.csv",
         products="products.csv",
     )
-    process = OrderProcessing(paths)
+    process = InventorySimulation(paths)
 
     process.process_all()
 

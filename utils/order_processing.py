@@ -4,7 +4,7 @@ import tqdm
 from utils.dataloader import DataLoader, FilePaths
 
 
-class OrderProcessing:
+class InventorySimulation:
     def __init__(self, filepaths: FilePaths):
         self.filepaths: FilePaths = filepaths
         self.dataloader: DataLoader = DataLoader(self.filepaths)
