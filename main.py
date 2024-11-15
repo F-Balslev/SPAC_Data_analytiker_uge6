@@ -1,5 +1,5 @@
 from utils.dataloader import FilePaths
-from utils.order_processing import InventorySimulation
+from utils.inventory_simulation import InventorySimulation
 
 
 def main():
