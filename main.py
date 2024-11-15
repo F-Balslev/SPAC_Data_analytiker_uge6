@@ -1,3 +1,4 @@
+from experiments.restocking_strategy_experiments import SimulateRestockWhenNLeft
 from utils.dataloader import FilePaths
 from utils.inventory_simulation import InventorySimulation
 
@@ -10,9 +11,10 @@ def main():
         restocks="restocks.csv",
         products="products.csv",
     )
-    process = InventorySimulation(paths)
+    # simulation = InventorySimulation(paths)
+    simulation = SimulateRestockWhenNLeft(paths, min_inventory=5, end_idx=25000)
 
-    process.process_all()
+    simulation.process_all()
 
     breakpoint()
 
