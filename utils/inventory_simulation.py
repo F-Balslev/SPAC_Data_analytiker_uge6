@@ -1,3 +1,4 @@
+import numpy as np
 import pandas as pd
 import tqdm
 
@@ -17,6 +18,10 @@ class InventorySimulation:
 
         self.start_date: pd.Timestamp = self.orders["date"].iloc[0]
         self.end_date: pd.Timestamp = self.orders["date"].iloc[-1]
+
+        self.debug_total_inventory_over_time = np.zeros(
+            (self.end_date - self.start_date).days + 1
+        )
 
     def load_csv(self):
         self.inventory = self.dataloader.load_inventory_to_dict()
@@ -66,8 +71,12 @@ class InventorySimulation:
     def process_day(self, date: pd.Timestamp):
         self.process_daily_restocks(date)
         self.process_daily_orders(date)
+        self.debug_total_inventory_over_time[(date - self.start_date).days] = (
+            self.inventory["total"]
+        )
 
     def process_all(self):
+        print("Running simulation")
         for date in tqdm.tqdm(pd.date_range(self.start_date, self.end_date)):
             self.process_day(date)
 
