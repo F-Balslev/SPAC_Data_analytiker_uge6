@@ -2,47 +2,33 @@ from collections import defaultdict
 
 import numpy as np
 import pandas as pd
-import tqdm
 
 from utils.dataloader import FilePaths
 from utils.inventory_simulation import InventorySimulation
 
-#
-#
-# order quantity: int(resstock_limit) + 1
-#
-#
 
-
-class SimulateRestocBasedOnProductFrequency(InventorySimulation):
+class SimulateRestockWhenNLeftSplit(InventorySimulation):
     """
-    Triggers a restock for each product when
-        items in inventory is less than 'products_sold_per_day' * 'shipping_time'
-
-
+    Triggers a restock when 'min_inventory' items in inventory instead of 0
+    split dataset
     """
 
     def __init__(
         self,
         filepaths: FilePaths,
+        min_inventory: int,
         sample_until: pd.Timestamp,
-        shpping_time: int = 9,
         end_idx: int = -1,
     ):
         # def __init__(self, inventory, num_workers):
         InventorySimulation.__init__(self, filepaths)
+        self.min_inventory: int = min_inventory
         self.end_date: pd.Timestamp = self.orders.iloc[end_idx]["date"]
-        self.shipping_time = shpping_time
-        self.start_date = sample_until
 
-        # Consider getting rid of this and only use start_date
+        self.start_date = sample_until
         self.sample_until = sample_until
 
-        # Split orders into a sampling dataframe and a dataframe for evaluation
-        self.samples, self.orders = self.sampling_split()
-
-        # Get limits for when to restock based on the sampling data
-        self.restock_limits = self.get_restock_limit()
+        _, self.orders = self.sampling_split()
 
         # Manually set status
         self.orders["status"] = "Unknown"
@@ -62,33 +48,8 @@ class SimulateRestocBasedOnProductFrequency(InventorySimulation):
 
         return self.orders[first_indexs].copy(), self.orders[~first_indexs].copy()
 
-    def get_restock_limit(self):
-        """
-        Calculates average number of products ordered in the time it takes for more products to be restsocked
-        """
-        product_count = defaultdict(lambda: 0)
-
-        print("Pre-processing")
-        for _, order in tqdm.tqdm(self.samples.iterrows()):
-            products = order["products"].split(", ")[:-1]
-
-            for product in products:
-                product_count[product] += 1
-
-        start_time: pd.Timestamp = self.samples.iloc[0]["date"]
-        end_date: pd.Timestamp = self.samples.iloc[-1]["date"]
-
-        n_days = (end_date - start_time).days
-
-        for key in product_count.keys():
-            product_count[key] *= self.shipping_time / n_days
-
-        return product_count
-
     def process_single_restock(self, shipment: pd.DataFrame):
         product, amount = shipment["product_id"], shipment["amount"]
-        # product = shipment["product_id"]
-        # amount = int(self.restock_limits[product]) + 1
 
         if product not in self.inventory:
             raise KeyError(f"Couldn't find {product} in inventory.")
@@ -138,8 +99,7 @@ class SimulateRestocBasedOnProductFrequency(InventorySimulation):
         products_to_restock = [
             product
             for product, stock in self.inventory.items()
-            if stock <= self.restock_limits[product]
-            and not self.pending_restock[product]
+            if stock <= self.min_inventory and not self.pending_restock[product]
         ]
 
         # Add to pending restocks
@@ -152,7 +112,7 @@ class SimulateRestocBasedOnProductFrequency(InventorySimulation):
                 "order_date": date,
                 "delivery_date": self.generate_delivery_date(date),
                 "product_id": product,
-                "amount": int(self.restock_limits[product]) + 1,
+                "amount": 10,
                 "supplier": None,  # self.get_supplier(product),
             }
             for product in products_to_restock
@@ -175,59 +135,3 @@ class SimulateRestocBasedOnProductFrequency(InventorySimulation):
         self.debug_total_inventory_over_time[(date - self.start_date).days] = (
             self.inventory["total"]
         )
-
-
-class SimulateRestocksBasedOnProductFrequency(SimulateRestocBasedOnProductFrequency):
-    def __init__(
-        self,
-        filepaths: FilePaths,
-        sample_until: pd.Timestamp,
-        shpping_time: int = 9,
-        end_idx: int = -1,
-        restock_multiplier=1,
-    ):
-        # def __init__(self, inventory, num_workers):
-        SimulateRestocBasedOnProductFrequency.__init__(
-            self,
-            filepaths,
-            sample_until,
-            shpping_time,
-            end_idx,
-        )
-        self.restock_multiplier = restock_multiplier
-
-    def add_new_restocks(self, date):
-        # Get all products that need to be restocked
-        products_to_restock = [
-            product
-            for product, stock in self.inventory.items()
-            if stock <= self.restock_limits[product]
-            and not self.pending_restock[product]
-        ]
-
-        # Add to pending restocks
-        for product in products_to_restock:
-            self.pending_restock[product] = True
-
-        # Store in dataframe
-        restock_data = [
-            {
-                "order_date": date,
-                "delivery_date": self.generate_delivery_date(date),
-                "product_id": product,
-                "amount": int(self.restock_limits[product] * self.restock_multiplier)
-                + 1,
-                "supplier": None,  # self.get_supplier(product),
-            }
-            for product in products_to_restock
-        ]
-
-        restock_data_df = pd.DataFrame(restock_data, columns=self.restocks.columns)
-
-        if self.restocks.empty:
-            self.restocks = restock_data_df
-        else:
-            self.restocks = pd.concat(
-                [self.restocks, restock_data_df],
-                ignore_index=True,
-            )
